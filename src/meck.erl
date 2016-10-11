@@ -34,6 +34,7 @@
 -export([sequence/4]).
 -export([loop/4]).
 -export([delete/3]).
+-export([delete/4]).
 -export([exception/2]).
 -export([passthrough/1]).
 -export([history/1]).
@@ -173,7 +174,7 @@ new(Mod) when is_list(Mod) -> lists:foreach(fun new/1, Mod), ok.
 %%
 %%   <dt>`non_strict'</dt>
 %%   <dd>A mock created with this option will allow setting expectations on
-%%       functions that are not exported from the mocked module. With this
+%%       functions that does not exist in the mocked module. With this
 %%       option on it is even possible to mock non existing modules.</dd>
 %%
 %%   <dt>`{stub_all, '{@link ret_spec()}`}'</dt>
@@ -182,6 +183,13 @@ new(Mod) when is_list(Mod) -> lists:foreach(fun new/1, Mod), ok.
 %%       passed in. It is possible to specify this option as just `stub_all'
 %%       then stubs will return atom `ok'. If used along with `passthrough'
 %%       then `stub_all' is ignored. </dd>
+%%
+%%   <dt>`merge_expects'</dt>
+%%   <dd>The expectations for the function/arity signature are merged with
+%%       existing ones instead of replacing all of them each time an
+%%       expectation is added. Expectations are added to the end of the
+%%       function clause list, meaning that pattern matching will be performed
+%%       in the order the expectations were added.</dd>
 %% </dl>
 -spec new(Mods, Options) -> ok when
       Mods :: Mod | [Mod],
@@ -282,17 +290,33 @@ loop(Mod, Func, Ari, Loop) when is_list(Mod) ->
 %%
 %% Deletes the expectation for the function `Func' with the matching
 %% arity `Arity'.
+%% `Force' is a flag to delete the function even if it is passthrough.
+-spec delete(Mods, Func, Ari, Force) -> ok when
+      Mods :: Mod | [Mod],
+      Mod :: atom(),
+      Func :: atom(),
+      Ari :: byte(),
+      Force :: boolean().
+delete(Mod, Func, Ari, Force)
+  when is_atom(Mod), is_atom(Func), Ari >= 0 ->
+    meck_proc:delete_expect(Mod, Func, Ari, Force);
+delete(Mod, Func, Ari, Force) when is_list(Mod) ->
+    lists:foreach(fun(M) -> delete(M, Func, Ari, Force) end, Mod),
+    ok.
+
+%% @doc Deletes an expectation.
+%%
+%% Deletes the expectation for the function `Func' with the matching
+%% arity `Arity'.
+%% If the mock has passthrough enabled, this function restores the
+%% expectation to the original function. See {@link delete/4}.
 -spec delete(Mods, Func, Ari) -> ok when
       Mods :: Mod | [Mod],
       Mod :: atom(),
       Func :: atom(),
       Ari :: byte().
-delete(Mod, Func, Ari)
-  when is_atom(Mod), is_atom(Func), Ari >= 0 ->
-    meck_proc:delete_expect(Mod, Func, Ari);
-delete(Mod, Func, Ari) when is_list(Mod) ->
-    lists:foreach(fun(M) -> delete(M, Func, Ari) end, Mod),
-    ok.
+delete(Mod, Func, Ari) ->
+    delete(Mod, Func, Ari, false).
 
 %% @doc Throws an expected exception inside an expect fun.
 %%

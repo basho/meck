@@ -17,3 +17,7 @@ tags
 *.sublime-project
 deps/*
 .rebar
+.deps.plt
+
+# Elixir/Hex.pm
+_build

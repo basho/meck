@@ -1,6 +1,6 @@
-[![Release](http://img.shields.io/github/release/eproxus/meck.svg)](https://github.com/eproxus/meck/releases/latest)
-[![Build Status](http://img.shields.io/travis/eproxus/meck.svg)](http://travis-ci.org/eproxus/meck)
-[![Code Climate](http://img.shields.io/badge/code_climate-17.0-brightgreen.svg)](https://travis-ci.org/eproxus/meck)
+[![Release](http://img.shields.io/github/release/eproxus/meck.svg?style=flat-square)](https://github.com/eproxus/meck/releases/latest)
+[![Build Status](https://img.shields.io/travis/eproxus/meck/master.svg?style=flat-square)](http://travis-ci.org/eproxus/meck)
+[![Code Climate](http://img.shields.io/badge/code_climate-Erlang_18.3-brightgreen.svg?style=flat-square)](https://travis-ci.org/eproxus/meck/branches)
 
 Meck
 ====
@@ -147,22 +147,33 @@ ok
 Build
 -----
 
-Meck requires `make` and [rebar][1] to build. To build Meck and run tests, go to the Meck
-directory and simply type:
+Meck requires `make` and [rebar][1] to build. To build Meck go to the Meck directory
+and simply type:
 
 ```sh
 make
 ```
 
+In order to run all tests for Meck type the following command from the same directory:
+
+```sh
+make test
+```
+
 Two things might seem alarming when running the tests:
 
   1. Warnings emitted by cover
-  2. En exception printed by SASL
+  2. An exception printed by SASL
 
 Both are expected due to the way Erlang currently prints errors. The
 important line you should look for is `All XX tests passed`, if that
 appears all is correct.
 
+Documentation can be generated through the use of the following command:
+
+```sh
+make doc
+```
 
 <a name='install'>
 
@@ -175,7 +186,7 @@ your `rebar.config` in your project root:
 ```erlang
 {deps, [
  {meck, ".*",
-  {git, "https://github.com/eproxus/meck.git", {tag, "0.8"}}}
+  {git, "https://github.com/eproxus/meck.git", {tag, "0.8.3"}}}
  ]}.
 ```
 
@@ -186,6 +197,53 @@ environment variable.
 
 
 <a name='contribute'>
+
+Caveats
+-------
+
+Meck will have trouble mocking certain modules since Meck works by
+recompiling and reloading modules. Since Erlang have a flat module
+namespace, replacing a module has to be done globally in the
+Erlang VM. This means certain modules cannot be mocked. The
+following is a non-exhaustive list of modules that can either be
+problematic to mock or not possible at all:
+
+* `erlang`
+* `os`
+* `crypto`
+* `compile`
+* `global`
+* `timer` (possible to mock, but used by some test frameworks, like Elixir's ExUnit)
+
+Also, a meck expectation set up for a function _f_ does not apply to the module-local invocation of _f_ within the mocked module.
+Consider the following module:
+```
+-module(test).
+-export([a/0, b/0, c/0]).
+
+a() ->
+  c().
+
+b() ->
+  ?MODULE:c().
+
+c() ->
+  original.
+```
+Note how the module-local call to `c/0` in `a/0` stays unchanged even though the expectation changes the externally visible behaviour of `c/0`:
+
+```
+3> meck:new(test, [passthrough]).
+ok
+4> meck:expect(test,c,0,changed).
+ok
+5> test:a().
+original
+6> test:b().
+changed
+6> test:c().
+changed
+```
 
 Contribute
 ----------
@@ -198,33 +256,16 @@ when developing new features or fixes for meck.
 Should you find yourself using Meck and have issues, comments or
 feedback please [create an issue here on GitHub][4].
 
-Contributors:
+Meck has been greatly improved by [many contributors]
+(https://github.com/eproxus/meck/graphs/contributors)!
 
-- Maxim Vladimirsky (@horkhe)
-- Ryan Zezeski (@rzezeski)
-- David Haglund (@daha)
-- Magnus Henoch (@legoscia)
-- Susan Potter (@mbbx6spp)
-- Andreas Amsenius (@adbl)
-- Anthony Molinaro (@djnym)
-- Matt Campbell (@xenolinguist)
-- Martynas Pumputis (@brb)
-- Shunichi Shinohara (@shino)
-- Miëtek Bak
-- Henry Nystrom
-- Ward Bekker (@wardbekker)
-- Damon Richardson
-- Christopher Meiklejohn
-- Joseph Wayne Norton (@norton)
-- Erkan Yilmaz (@Erkan-Yilmaz)
-- Joe Williams (@joewilliams)
-- Russell Brown
-- Michael Klishin (@michaelklishin)
-- Magnus Klaar
+### Donations
 
+If you or your company use Meck and find it useful, Bitcoin donations to the address `1M7pLbBpjkwxffT7kZPKhxiPGKf4eHDqtz` are greatly appreciated!
 
   [1]: https://github.com/eproxus/meck/wiki/0.8-Release-Notes
        "0.8 Release Notes"
   [2]: https://github.com/hyperthunk/hamcrest-erlang "Hamcrest for Erlang"
   [3]: https://github.com/basho/rebar "Rebar - A build tool for Erlang"
   [4]: http://github.com/eproxus/meck/issues "Meck issues"
+
